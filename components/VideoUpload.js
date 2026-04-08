@@ -65,12 +65,6 @@ export default function VideoUpload() {
       });
 
       if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error(
-            "Video endpoint not found. The /predict/video endpoint requires running the backend locally. " +
-            "Run: python app.py (in the project root) and set NEXT_PUBLIC_API_URL=http://localhost:8000 in .env.local"
-          );
-        }
         // Try to parse JSON error, fallback to text for HTML error pages
         let errMsg = `Server error ${res.status}`;
         try {
@@ -78,6 +72,10 @@ export default function VideoUpload() {
           if (ct.includes("application/json")) {
             const errData = await res.json();
             errMsg = errData.detail || errMsg;
+          } else if (res.status === 404) {
+            errMsg = "Video processing endpoint not available. The backend may still be loading — please wait a moment and try again.";
+          } else if (res.status === 503 || res.status === 502) {
+            errMsg = "The backend is currently unavailable. It may be waking up — please try again in 30 seconds.";
           }
         } catch (e) { /* ignore parse errors */ }
         throw new Error(errMsg);
