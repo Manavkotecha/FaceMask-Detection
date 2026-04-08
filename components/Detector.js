@@ -110,14 +110,17 @@ export default function Detector() {
     const img = imgRef.current;
     if (!canvas || !img) return;
 
-    // Wait for image to be rendered
-    requestAnimationFrame(() => {
+    const paint = () => {
       const dispW = img.clientWidth;
       const dispH = img.clientHeight;
       const natW = img.naturalWidth;
       const natH = img.naturalHeight;
 
-      if (!natW || !natH) return;
+      // Retry until the image has been laid out by the browser
+      if (!natW || !natH || !dispW || !dispH) {
+        requestAnimationFrame(paint);
+        return;
+      }
 
       canvas.width = dispW;
       canvas.height = dispH;
@@ -158,7 +161,30 @@ export default function Detector() {
         ctx.fillStyle = "#0a0e1a";
         ctx.fillText(text, sx + 5, sy - 5);
       }
-    });
+    };
+
+    requestAnimationFrame(paint);
+  };
+
+  /* ── Mode switch handler — reset per-mode state ─────────── */
+  const switchMode = (key) => {
+    if (key === activeMode) return;
+    // Clear image-mode state when leaving image mode
+    if (activeMode === "image") {
+      setResult(null);
+      setError(null);
+      setImageFile(null);
+      setPreviewUrl(null);
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext("2d");
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    }
+    // Clear camera-mode result when leaving camera mode
+    if (activeMode === "camera") {
+      setCameraResult(null);
+    }
+    setActiveMode(key);
   };
 
   /* ── Get the active result (image or camera) ─────────────── */
@@ -182,7 +208,7 @@ export default function Detector() {
           <button
             key={mode.key}
             className={`mode-tab ${activeMode === mode.key ? "mode-tab-active" : ""}`}
-            onClick={() => setActiveMode(mode.key)}
+            onClick={() => switchMode(mode.key)}
           >
             <span className="mode-tab-icon">{mode.icon}</span>
             <span className="mode-tab-label">{mode.label}</span>

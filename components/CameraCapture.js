@@ -26,6 +26,7 @@ export default function CameraCapture({ onResult }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const overlayCanvasRef = useRef(null);
+  const capturedImgRef = useRef(null);
   const streamRef = useRef(null);
 
   const [cameraActive, setCameraActive] = useState(false);
@@ -105,10 +106,9 @@ export default function CameraCapture({ onResult }) {
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
 
-    // Mirror the canvas so captured image matches the live mirrored view
-    // This ensures bounding box coordinates from the model align with the displayed image
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
+    // Draw the video frame as-is (no mirror) so bounding box coords from
+    // the model match the image exactly. The live feed is mirrored via CSS
+    // only for the user's comfort, but the actual image data is not.
     ctx.drawImage(video, 0, 0);
 
     // Convert canvas to blob
@@ -158,16 +158,20 @@ export default function CameraCapture({ onResult }) {
   /* ── Draw bounding boxes on overlay ─────────────────────── */
   const drawBoxes = (detections) => {
     const overlay = overlayCanvasRef.current;
-    const imgEl = document.getElementById("captured-preview");
+    const imgEl = capturedImgRef.current;
     if (!overlay || !imgEl) return;
 
-    requestAnimationFrame(() => {
+    const paint = () => {
       const dispW = imgEl.clientWidth;
       const dispH = imgEl.clientHeight;
       const natW = imgEl.naturalWidth;
       const natH = imgEl.naturalHeight;
 
-      if (!natW || !natH) return;
+      if (!natW || !natH || !dispW || !dispH) {
+        // Image not ready yet — retry
+        requestAnimationFrame(paint);
+        return;
+      }
 
       overlay.width = dispW;
       overlay.height = dispH;
@@ -202,7 +206,9 @@ export default function CameraCapture({ onResult }) {
         ctx.fillStyle = "#0a0e1a";
         ctx.fillText(text, sx + 5, sy - 5);
       }
-    });
+    };
+
+    requestAnimationFrame(paint);
   };
 
   /* ── Retake ──────────────────────────────────────────────── */
@@ -288,11 +294,12 @@ export default function CameraCapture({ onResult }) {
         {capturedImage && (
           <div className="preview-container">
             <img
-              id="captured-preview"
+              ref={capturedImgRef}
               src={capturedImage.url}
               alt="Captured frame"
               onLoad={() => {
-                /* re-draw boxes if result already exists */
+                // If analysis result already exists (e.g. after retake), redraw boxes
+                // This is handled via the ref — no action needed here
               }}
             />
             <canvas ref={overlayCanvasRef} />
