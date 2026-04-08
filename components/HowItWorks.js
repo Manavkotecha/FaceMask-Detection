@@ -25,9 +25,7 @@ export default function HowItWorks() {
       <div style={{ position: "relative", zIndex: 1 }}>
         <h2 className="section-heading">How The Neural Network Predicts</h2>
         <p className="section-subtext">
-          Our cutting-edge Faster R-CNN model breaks down images in real-time to
-          analyze structural features, detecting human faces and classifying mask
-          compliance with outstanding accuracy.
+        Our cutting-edge model breaks down images in real-time to
         </p>
 
         <div className="pipeline-cards">

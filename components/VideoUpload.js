@@ -215,7 +215,7 @@ export default function VideoUpload() {
             </div>
             <div className="processing-text">{progress}</div>
             <div className="processing-subtext">
-              Each frame is analyzed by the Faster R-CNN model
+              Each frame is analyzed by the detection model
             </div>
           </div>
         )}

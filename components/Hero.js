@@ -73,7 +73,7 @@ export default function Hero() {
           </h1>
 
           <p className="hero-description">
-            Ensure safety and compliance instantly. Our advanced Faster R-CNN neural network accurately identifies faces and evaluates mask-wearing correctly in milliseconds.
+            Ensure safety and compliance instantly. Our advanced neural network accurately identifies faces and evaluates mask-wearing correctly in milliseconds.
           </p>
 
           <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>

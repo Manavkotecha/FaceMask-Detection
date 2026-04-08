@@ -199,7 +199,7 @@ export default function Detector() {
 
       <h2 className="section-heading">Try The Detector</h2>
       <p className="section-subtext" style={{ marginLeft: "auto", marginRight: "auto" }}>
-        Upload an image, capture from camera, or process a video — powered by Faster R-CNN
+        Upload an image, capture from camera, or process a video — powered by advanced mask detection
       </p>
 
       {/* ── Mode Switcher Tabs ─────────────────────────────── */}

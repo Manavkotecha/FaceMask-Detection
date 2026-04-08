@@ -3,7 +3,7 @@ import "./globals.css";
 export const metadata = {
   title: "Next-Gen Face Protection Analysis",
   description:
-    "Next-generation face protection analysis powered by Faster R-CNN. Detect and classify mask usage in real-time.",
+    "Next-generation face protection analysis powered by advanced neural analysis. Detect and classify mask usage in real-time.",
 };
 
 export default function RootLayout({ children }) {
