@@ -2,6 +2,8 @@
 
 import { useRef, useState, useCallback } from "react";
 import OrbitalSphere from "./OrbitalSphere";
+import CameraCapture from "./CameraCapture";
+import VideoUpload from "./VideoUpload";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -23,17 +25,27 @@ const ICONS = {
   mask_weared_incorrect: "⚠",
 };
 
+const MODES = [
+  { key: "image", label: "Image Upload", icon: "🖼" },
+  { key: "camera", label: "Camera Capture", icon: "📷" },
+  { key: "video", label: "Video Upload", icon: "🎬" },
+];
+
 export default function Detector() {
   const fileInputRef = useRef(null);
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
 
+  const [activeMode, setActiveMode] = useState("image");
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [dragging, setDragging] = useState(false);
+
+  // Camera result (shared with results panel)
+  const [cameraResult, setCameraResult] = useState(null);
 
   /* ── Select / drop image ────────────────────────────────────── */
   const handleFile = useCallback((file) => {
@@ -149,6 +161,9 @@ export default function Detector() {
     });
   };
 
+  /* ── Get the active result (image or camera) ─────────────── */
+  const activeResult = activeMode === "camera" ? cameraResult : result;
+
   return (
     <section className="detector" id="detector">
       {/* Rotating Sphere header */}
@@ -158,10 +173,25 @@ export default function Detector() {
 
       <h2 className="section-heading">Try The Detector</h2>
       <p className="section-subtext" style={{ marginLeft: "auto", marginRight: "auto" }}>
-        Upload an image below to see the Faster R-CNN model in action
+        Upload an image, capture from camera, or process a video — powered by Faster R-CNN
       </p>
 
-      {error && (
+      {/* ── Mode Switcher Tabs ─────────────────────────────── */}
+      <div className="mode-switcher">
+        {MODES.map((mode) => (
+          <button
+            key={mode.key}
+            className={`mode-tab ${activeMode === mode.key ? "mode-tab-active" : ""}`}
+            onClick={() => setActiveMode(mode.key)}
+          >
+            <span className="mode-tab-icon">{mode.icon}</span>
+            <span className="mode-tab-label">{mode.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Global error (for image mode) ──────────────────── */}
+      {activeMode === "image" && error && (
         <div
           style={{
             maxWidth: 600,
@@ -179,171 +209,189 @@ export default function Detector() {
         </div>
       )}
 
-      <div className="detector-grid">
-        {/* ── LEFT: Upload Panel ─────────────────────────────── */}
-        <div className="upload-panel glass glow-border">
-          <div className="panel-label">01 — Input Image</div>
+      {/* ═══════════════════════════════════════════════════════
+          VIDEO MODE — Full-width layout (has its own results panel)
+          ═══════════════════════════════════════════════════════ */}
+      {activeMode === "video" && <VideoUpload />}
 
-          {/* Drop zone / replace zone */}
-          <div
-            className={`drop-zone ${dragging ? "dragging" : ""}`}
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
-            style={previewUrl ? { border: "none", cursor: "pointer" } : {}}
-          >
-            {!previewUrl ? (
-              <>
-                <div className="drop-zone-icon">⬆</div>
-                <div className="drop-zone-text">
-                  Drop image here or click to browse
-                </div>
-                <div className="drop-zone-hint">PNG, JPG, WEBP — any size</div>
-              </>
-            ) : (
-              <div className="drop-zone-text" style={{ fontSize: "0.8rem" }}>
-                Click or drop to replace image
+      {/* ═══════════════════════════════════════════════════════
+          IMAGE & CAMERA MODES — Two-column layout with shared results
+          ═══════════════════════════════════════════════════════ */}
+      {activeMode !== "video" && (
+        <div className="detector-grid">
+          {/* ── LEFT: Input Panel ─────────────────────────────── */}
+          {activeMode === "image" && (
+            <div className="upload-panel glass glow-border">
+              <div className="panel-label">01 — Input Image</div>
+
+              {/* Drop zone / replace zone */}
+              <div
+                className={`drop-zone ${dragging ? "dragging" : ""}`}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={onDrop}
+                style={previewUrl ? { border: "none", cursor: "pointer" } : {}}
+              >
+                {!previewUrl ? (
+                  <>
+                    <div className="drop-zone-icon">⬆</div>
+                    <div className="drop-zone-text">
+                      Drop image here or click to browse
+                    </div>
+                    <div className="drop-zone-hint">PNG, JPG, WEBP — any size</div>
+                  </>
+                ) : (
+                  <div className="drop-zone-text" style={{ fontSize: "0.8rem" }}>
+                    Click or drop to replace image
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={onFileChange}
-            style={{ display: "none" }}
-          />
-
-          {/* Preview with bounding-box canvas overlay */}
-          {previewUrl && (
-            <div className="preview-container">
-              <img
-                ref={imgRef}
-                src={previewUrl}
-                alt="Upload preview"
-                onLoad={() => {
-                  if (result) drawBoxes(result.detections);
-                }}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={onFileChange}
+                style={{ display: "none" }}
               />
-              <canvas ref={canvasRef} />
+
+              {/* Preview with bounding-box canvas overlay */}
+              {previewUrl && (
+                <div className="preview-container">
+                  <img
+                    ref={imgRef}
+                    src={previewUrl}
+                    alt="Upload preview"
+                    onLoad={() => {
+                      if (result) drawBoxes(result.detections);
+                    }}
+                  />
+                  <canvas ref={canvasRef} />
+                </div>
+              )}
+
+              {/* Run button */}
+              <button
+                className="run-btn"
+                onClick={runAnalysis}
+                disabled={!imageFile || loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="spinner" /> ANALYZING...
+                  </>
+                ) : (
+                  <>▶ RUN ANALYSIS</>
+                )}
+              </button>
             </div>
           )}
 
-          {/* Run button */}
-          <button
-            className="run-btn"
-            onClick={runAnalysis}
-            disabled={!imageFile || loading}
-          >
-            {loading ? (
-              <>
-                <span className="spinner" /> ANALYZING...
-              </>
-            ) : (
-              <>▶ RUN ANALYSIS</>
-            )}
-          </button>
-        </div>
+          {activeMode === "camera" && (
+            <div className="upload-panel glass glow-border">
+              <CameraCapture onResult={setCameraResult} />
+            </div>
+          )}
 
-        {/* ── RIGHT: Results ─────────────────────────────────── */}
-        <div className="results-col">
-          {/* Summary panel */}
-          <div className="summary-panel glass glow-border">
-            <div className="panel-label">02 — Detection Summary</div>
+          {/* ── RIGHT: Results ─────────────────────────────────── */}
+          <div className="results-col">
+            {/* Summary panel */}
+            <div className="summary-panel glass glow-border">
+              <div className="panel-label">02 — Detection Summary</div>
 
-            {result ? (
-              <>
-                <div className="summary-grid">
-                  <div className="summary-stat">
-                    <div>
-                      <span className="dot dot-green" />
-                      <span className="stat-name">With Mask</span>
+              {activeResult ? (
+                <>
+                  <div className="summary-grid">
+                    <div className="summary-stat">
+                      <div>
+                        <span className="dot dot-green" />
+                        <span className="stat-name">With Mask</span>
+                      </div>
+                      <div className="stat-num">{activeResult.with_mask}</div>
                     </div>
-                    <div className="stat-num">{result.with_mask}</div>
-                  </div>
-                  <div className="summary-stat">
-                    <div>
-                      <span className="dot dot-red" />
-                      <span className="stat-name">Without Mask</span>
+                    <div className="summary-stat">
+                      <div>
+                        <span className="dot dot-red" />
+                        <span className="stat-name">Without Mask</span>
+                      </div>
+                      <div className="stat-num">{activeResult.without_mask}</div>
                     </div>
-                    <div className="stat-num">{result.without_mask}</div>
-                  </div>
-                  <div className="summary-stat">
-                    <div>
-                      <span className="dot dot-amber" />
-                      <span className="stat-name">Mask Weared Incorrect</span>
-                    </div>
-                    <div className="stat-num">
-                      {result.mask_weared_incorrect}
+                    <div className="summary-stat">
+                      <div>
+                        <span className="dot dot-amber" />
+                        <span className="stat-name">Mask Weared Incorrect</span>
+                      </div>
+                      <div className="stat-num">
+                        {activeResult.mask_weared_incorrect}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="total-bar">
-                  <div className="total-label">Total Detections</div>
-                  <div className="total-num">{result.total_detections}</div>
-                </div>
-              </>
-            ) : (
-              <div className="awaiting">
-                <div className="awaiting-icon">🖥</div>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>
-                  Awaiting analysis...
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Confidence panel */}
-          <div className="confidence-panel glass glow-border">
-            <div className="panel-label">03 — Confidence Scores</div>
-
-            <div className="confidence-scroll-area">
-              {result && result.detections.length > 0 ? (
-                result.detections.map((det, i) => (
-                  <div key={i} className="detection-item">
-                    <div className="detection-header">
-                      <span className={`detection-label ${det.label}`}>
-                        {ICONS[det.label]} {LABELS[det.label]} #{i + 1}
-                      </span>
-                      <span className={`detection-score ${det.label}`}>
-                        {(det.confidence * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="score-bar">
-                      <div
-                        className={`score-bar-fill ${det.label}`}
-                        style={{ width: `${det.confidence * 100}%` }}
-                      />
-                    </div>
-                    <div className="detection-bbox">
-                      Box [{det.bbox.map((v) => Math.round(v)).join(", ")}]
-                    </div>
+                  <div className="total-bar">
+                    <div className="total-label">Total Detections</div>
+                    <div className="total-num">{activeResult.total_detections}</div>
                   </div>
-                ))
+                </>
               ) : (
-                <div className="awaiting" style={{ padding: "1.5rem" }}>
-                  {/* Placeholder bars */}
-                  {[80, 60, 45].map((w, i) => (
-                    <div key={i} className="score-bar" style={{ width: "100%", marginBottom: 12 }}>
-                      <div
-                        style={{
-                          height: 6,
-                          width: `${w}%`,
-                          borderRadius: 3,
-                          background: "rgba(148,163,184,0.12)",
-                        }}
-                      />
-                    </div>
-                  ))}
+                <div className="awaiting">
+                  <div className="awaiting-icon">🖥</div>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>
+                    Awaiting analysis...
+                  </span>
                 </div>
               )}
             </div>
+
+            {/* Confidence panel */}
+            <div className="confidence-panel glass glow-border">
+              <div className="panel-label">03 — Confidence Scores</div>
+
+              <div className="confidence-scroll-area">
+                {activeResult && activeResult.detections.length > 0 ? (
+                  activeResult.detections.map((det, i) => (
+                    <div key={i} className="detection-item">
+                      <div className="detection-header">
+                        <span className={`detection-label ${det.label}`}>
+                          {ICONS[det.label]} {LABELS[det.label]} #{i + 1}
+                        </span>
+                        <span className={`detection-score ${det.label}`}>
+                          {(det.confidence * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="score-bar">
+                        <div
+                          className={`score-bar-fill ${det.label}`}
+                          style={{ width: `${det.confidence * 100}%` }}
+                        />
+                      </div>
+                      <div className="detection-bbox">
+                        Box [{det.bbox.map((v) => Math.round(v)).join(", ")}]
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="awaiting" style={{ padding: "1.5rem" }}>
+                    {/* Placeholder bars */}
+                    {[80, 60, 45].map((w, i) => (
+                      <div key={i} className="score-bar" style={{ width: "100%", marginBottom: 12 }}>
+                        <div
+                          style={{
+                            height: 6,
+                            width: `${w}%`,
+                            borderRadius: 3,
+                            background: "rgba(148,163,184,0.12)",
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Legend */}
       <div className="legend">
