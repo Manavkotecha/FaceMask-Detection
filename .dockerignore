@@ -1,0 +1,25 @@
+# ── Version control / build artifacts ───────────
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+
+# ── IDE / editor ────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Notebooks & training artefacts ──────────────
+*.ipynb
+*.ipynb_checkpoints/
+
+# ── OS junk ─────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Docker ──────────────────────────────────────
+Dockerfile
+.dockerignore
+docker-compose*.yml
